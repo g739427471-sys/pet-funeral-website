@@ -1,0 +1,151 @@
+// Prisma schema —— 归栖 · 宠物殡葬服务电商网站
+// 数据库：PostgreSQL（本地开发用 prisma dev 起的兼容库）
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ===================== 枚举 =====================
+
+enum ProductCategory {
+  URN // 骨灰盒
+  KEEPSAKE // 纪念品
+  OFFERING // 祭祀用品
+}
+
+enum ServiceType {
+  CREMATION // 火化服务
+  CEREMONY // 告别仪式
+  PICKUP // 上门接送
+}
+
+enum BookingStatus {
+  PENDING // 待确认
+  CONFIRMED // 已确认
+  COMPLETED // 已完成
+  CANCELLED // 已取消
+}
+
+enum OrderStatus {
+  PENDING // 待支付
+  PAID // 已支付
+  CANCELLED // 已取消
+  REFUNDED // 已退款
+}
+
+// ===================== 模型 =====================
+
+model Product {
+  id          String          @id @default(cuid())
+  name        String // 产品名，如「实木骨灰盒」
+  slug        String          @unique // URL 标识
+  category    ProductCategory
+  description String
+  priceCents  Int // 价格（分），透明定价
+  imageUrl    String?
+  stock       Int? // 库存，null 表示不限
+  active      Boolean         @default(true) // 是否上架
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  orderItems OrderItem[]
+
+  @@map("products")
+}
+
+model Service {
+  id              String      @id @default(cuid())
+  name            String // 服务名，如「火化服务」
+  slug            String      @unique
+  type            ServiceType
+  description     String
+  priceCents      Int // 价格（分），透明定价
+  durationMinutes Int? // 服务时长（分钟）
+  active          Boolean     @default(true)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  bookings Booking[]
+
+  @@map("services")
+}
+
+model Booking {
+  id            String        @id @default(cuid())
+  service       Service       @relation(fields: [serviceId], references: [id])
+  serviceId     String
+  customerName  String // 联系人姓名
+  customerPhone String // 联系电话
+  customerEmail String?
+  petName       String // 宠物名字
+  petType       String? // 宠物类型（猫/狗/其他）
+  scheduledAt   DateTime // 期望的服务时间
+  address       String? // 上门接送地址
+  note          String? // 备注
+  status        BookingStatus @default(PENDING) // 后台人工确认
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  order Order?
+
+  @@index([serviceId])
+  @@map("bookings")
+}
+
+model Order {
+  id                    String      @id @default(cuid())
+  orderNumber           String      @unique // 展示用订单号
+  status                OrderStatus @default(PENDING)
+  totalCents            Int // 总价（分）
+  currency              String      @default("cny") // Stripe 币种
+  customerName          String?
+  customerEmail         String
+  stripeSessionId       String?     @unique // Stripe Checkout 会话
+  stripePaymentIntentId String?     @unique
+  booking               Booking?    @relation(fields: [bookingId], references: [id])
+  bookingId             String?     @unique // 关联的服务预约（可为空，纯购物订单）
+  paidAt                DateTime?
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  items OrderItem[]
+
+  @@index([bookingId])
+  @@map("orders")
+}
+
+model OrderItem {
+  id             String  @id @default(cuid())
+  order          Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId        String
+  product        Product @relation(fields: [productId], references: [id])
+  productId      String
+  quantity       Int     @default(1)
+  unitPriceCents Int // 下单时的单价快照
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+model Memorial {
+  id         String    @id @default(cuid())
+  slug       String    @unique // 纪念页 URL
+  petName    String // 宠物名字
+  petType    String?
+  birthDate  DateTime?
+  passedDate DateTime? // 离世日期
+  story      String // 纪念文字（长文）
+  imageUrl   String? // 宠物照片
+  ownerName  String? // 主人名字
+  published  Boolean   @default(false) // 是否公开
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@map("memorials")
+}
