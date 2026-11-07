@@ -2,6 +2,8 @@
 
 一个温暖、庄重、克制的宠物殡葬服务电商网站。提供纪念用品选购、殡葬服务在线预约、线上纪念空间，以及 Stripe 测试支付。
 
+> 线上地址：<https://pet-funeral-website-4d9p.vercel.app/>
+
 ## 技术栈
 
 - **前端**：Next.js 16（App Router、Turbopack）、React 19、TypeScript
